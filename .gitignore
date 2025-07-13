@@ -1,0 +1,34 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+.env.* 
+
+# Build output (if you have a build process)
+dist/
+build/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Debugging files
+*.swp
+*.swo
+*.sqlite
