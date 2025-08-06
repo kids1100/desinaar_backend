@@ -12,26 +12,25 @@ const ProductSchema = new mongoose.Schema({
   sizes: { type: [String], default: [] },
   colors: { type: [String], default: [] },
 
-  fabricCare: {
-    fabric: { type: String, default: undefined },
-    color: { type: String, default: undefined },
-    workType: { type: String, default: undefined },
-    deliveryTimeline: { type: String, default: undefined },
-    setIncludes: { type: String, default: undefined },
-    kurtaLength: { type: String, default: undefined },
-    pantsLength: { type: String, default: undefined },
-    washCare: { type: String, default: undefined },
-    styleCode: { type: String, default: undefined },
-    additionalNotes: { type: String, default: undefined },
-  },
+  fabric: { type: String, default: undefined },
+  color: { type: String, default: undefined },
+  workType: { type: String, default: undefined },
+  deliveryTimeline: { type: String, default: undefined },
+  setIncludes: { type: String, default: undefined },
+  kurtaLength: { type: String, default: undefined },
+  pantsLength: { type: String, default: undefined },
+  washCare: { type: String, default: undefined },
+  styleCode: { type: String, default: undefined },
+  additionalNotes: { type: String, default: undefined },
 
-  deliveryAndReturns: {
-    domesticShipping: { type: String, default: undefined },
-    internationalShipping: { type: String, default: undefined },
-    domesticTime: { type: String, default: undefined },
-    internationalTime: { type: String, default: undefined },
-    returnPolicy: { type: String, default: undefined },
-  },
+
+
+  domesticShipping: { type: String, default: undefined },
+  internationalShipping: { type: String, default: undefined },
+  domesticTime: { type: String, default: undefined },
+  internationalTime: { type: String, default: undefined },
+  returnPolicy: { type: String, default: undefined },
+
 
   collectionType: {
     type: String,

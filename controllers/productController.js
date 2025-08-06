@@ -17,8 +17,21 @@ const uploadProduct = async (req, res) => {
       price,
       sizes,
       colors,
-      fabricCare,
-      deliveryAndReturns,
+      fabric,
+      color,
+      workType,
+      deliveryTimeline,
+      setIncludes,
+      kurtaLength,
+      pantsLength,
+      washCare,
+      styleCode,
+      additionalNotes,
+      domesticShipping,
+      internationalShipping,
+      domesticTime,
+      internationalTime,
+      returnPolicy,
       collectionType,
       sequenceNo,
     } = req.body;
@@ -80,9 +93,39 @@ const uploadProduct = async (req, res) => {
     }
 
     // Save to DB
+    // const product = new Product({
+    //   ...productData,
+    //   imageUrls,
+    // });
+
     const product = new Product({
-      ...productData,
+      title: title?.trim(),
+      sku: sku?.trim(),
+      price: price ? parseFloat(price) : undefined,
+      sizes: sizes ? JSON.parse(sizes) : [],
+      colors: colors ? JSON.parse(colors) : [],
       imageUrls,
+      detailImages: detailImageUrls,
+
+      fabric,
+      color,
+      workType,
+      deliveryTimeline,
+      setIncludes,
+      kurtaLength,
+      pantsLength,
+      washCare,
+      styleCode,
+      additionalNotes,
+
+      domesticShipping,
+      internationalShipping,
+      domesticTime,
+      internationalTime,
+      returnPolicy,
+
+      collectionType: collectionType?.trim(),
+      sequenceNo: sequenceNo ? parseInt(sequenceNo) : 0,
     });
 
     await product.save();
@@ -172,9 +215,23 @@ const updateProduct = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    console.log("Request Files:", req.files);
-    console.log("Detail Images from request:", req.files?.detailImages);
+    console.log("Request Files updates:", updates);
+    console.log("Request Files updates id:", id);
 
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({
+        status: "error",
+        statusCode: 404,
+        message: "Product not found",
+        data: null,
+      });
+    }
+
+    console.log("Product details", product);
+
+    // ---------- Handle main images ----------
     const images = req.files?.images || [];
     let imageUrls = [];
 
@@ -199,11 +256,15 @@ const updateProduct = async (req, res) => {
       imageUrls.push(publicUrl);
     }
 
-    if (imageUrls.length > 0) updates.imageUrls = imageUrls;
+    // Preserve old images if none are uploaded
+    if (imageUrls.length > 0) {
+      updates.imageUrls = imageUrls;
+    } else {
+      updates.imageUrls = product.imageUrls;
+    }
 
     // ---------- Handle detail images ----------
     const detailImages = req.files?.detailImages || [];
-    console.log("Detail Images array:", detailImages);
     let detailImageUrls = [];
 
     for (const image of detailImages) {
@@ -225,23 +286,23 @@ const updateProduct = async (req, res) => {
 
       const publicUrl = `https://ewppyeqhqylgauppwvjd.supabase.co/storage/v1/object/public/3gContent/${data.path}`;
       detailImageUrls.push(publicUrl);
-      console.log("Detail image uploaded:", publicUrl);
     }
 
-    console.log("Final detailImageUrls:", detailImageUrls);
-
+    // Preserve old detailImages if none are uploaded
     if (detailImageUrls.length > 0) {
       updates.detailImages = detailImageUrls;
-      console.log("Setting detailImages in updates:", updates.detailImages);
     } else if (updates.detailImages) {
       updates.detailImages = JSON.parse(updates.detailImages);
-      console.log("Parsed existing detailImages:", updates.detailImages);
+    } else {
+      updates.detailImages = product.detailImages;
     }
 
+    console.log("update fabric", updates.fabricCare);
+
+    // ---------- Parse structured fields ----------
     const parseIfString = (field) =>
       typeof field === "string" ? JSON.parse(field) : field;
 
-    // Convert fields safely
     updates.fabricCare = parseIfString(updates.fabricCare);
     updates.deliveryAndReturns = parseIfString(updates.deliveryAndReturns);
     updates.additionalInfo = parseIfString(updates.additionalInfo);
@@ -254,24 +315,44 @@ const updateProduct = async (req, res) => {
     if (updates.price) updates.price = parseFloat(updates.price);
 
     // Trim string fields
-    ["title", "description", "sku", "videoUrl", "collectionType"].forEach((key) => {
+    // ["title", "description", "sku", "videoUrl", "collectionType"].forEach((key) => {
+    //   if (updates[key] && typeof updates[key] === "string") {
+    //     updates[key] = updates[key].trim();
+    //   }
+    // });
+
+    // ---------- Trim string fields ----------
+    [
+      "title",
+      "description",
+      "sku",
+      "videoUrl",
+      "collectionType",
+      "fabric",
+      "color",
+      "workType",
+      "deliveryTimeline",
+      "setIncludes",
+      "kurtaLength",
+      "pantsLength",
+      "washCare",
+      "styleCode",
+      "additionalNotes",
+      "domesticShipping",
+      "internationalShipping",
+      "domesticTime",
+      "internationalTime",
+      "returnPolicy",
+    ].forEach((key) => {
       if (updates[key] && typeof updates[key] === "string") {
         updates[key] = updates[key].trim();
       }
     });
 
+    // ---------- Update in DB ----------
     const updatedProduct = await Product.findByIdAndUpdate(id, updates, {
       new: true,
     });
-
-    if (!updatedProduct) {
-      return res.status(404).json({
-        status: "error",
-        statusCode: 404,
-        message: "Product not found",
-        data: null,
-      });
-    }
 
     return res.status(200).json({
       status: "success",
@@ -280,6 +361,7 @@ const updateProduct = async (req, res) => {
       data: updatedProduct,
     });
   } catch (err) {
+    console.error("Update Product Error:", err.message);
     return res.status(500).json({
       status: "error",
       statusCode: 500,
@@ -288,6 +370,7 @@ const updateProduct = async (req, res) => {
     });
   }
 };
+
 
 const deleteProduct = async (req, res) => {
   try {
