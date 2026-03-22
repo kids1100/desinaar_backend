@@ -1,9 +1,38 @@
 // controllers/productController.js
 const Product = require("../models/Product");
-const { createClient } = require("@supabase/supabase-js");
-const supabase = require("../Supabase/supabase");
-const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
+
+// Configure Cloudinary using env variables
+// Add these to your .env file:
+// CLOUDINARY_CLOUD_NAME=your_cloud_name
+// CLOUDINARY_API_KEY=your_api_key
+// CLOUDINARY_API_SECRET=your_api_secret
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Helper: Upload a single buffer to Cloudinary
+const uploadToCloudinary = (buffer, folder) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,                  // ✅ this sets desinaar/productImage
+        resource_type: "image",
+        use_filename: true,
+        unique_filename: false,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        const cleanUrl = result.secure_url.replace(/\/v\d+\//, "/");
+        resolve(cleanUrl);
+      }
+    );
+    stream.end(buffer);
+  });
+};
 
 const uploadProduct = async (req, res) => {
   let imageUrls = [];
@@ -36,27 +65,10 @@ const uploadProduct = async (req, res) => {
       sequenceNo,
     } = req.body;
 
-    const images = req.files;
-
-    const productData = {
-      title: title?.trim(),
-      sku: sku?.trim(),
-      price:
-        price !== undefined && price !== null
-          ? parseFloat(typeof price === "string" ? price.trim() : price)
-          : undefined,
-      sizes: sizes ? JSON.parse(sizes) : [],
-      colors: colors ? JSON.parse(colors) : [],
-      fabricCare: fabricCare ? JSON.parse(fabricCare) : {},
-      deliveryAndReturns: deliveryAndReturns
-        ? JSON.parse(deliveryAndReturns)
-        : {},
-      collectionType: collectionType?.trim() || "general", // default if needed
-      sequenceNo: sequenceNo ? parseInt(sequenceNo) : 0, // or default to 0
-    };
+    const images = req.files?.images || req.files || [];
 
     // Check required fields
-    if (!productData.title || !productData.sku || isNaN(productData.price)) {
+    if (!title?.trim() || !sku?.trim() || isNaN(parseFloat(price))) {
       return res.status(400).json({
         status: "error",
         statusCode: 400,
@@ -64,39 +76,17 @@ const uploadProduct = async (req, res) => {
       });
     }
 
-    // 🔹 Upload images to Supabase
+    // Upload main images to Cloudinary
     if (images && images.length > 0) {
       for (const image of images) {
-        const fileName = image.originalname;
-        const folderName = "desinaar/productImage";
-        const filePath = `${folderName}/${fileName}`;
-
-        const { data, error: uploadError } = await supabase.storage
-          .from("3gContent")
-          .upload(filePath, image.buffer, {
-            contentType: image.mimetype,
-            cacheControl: "3600",
-            upsert: true,
-          });
-
-        if (uploadError) {
-          console.error("Supabase upload error:", uploadError.message);
-          throw new Error(`Supabase upload error: ${uploadError.message}`);
-        }
-
-        const SUPABASE_URL =
-          "https://ewppyeqhqylgauppwvjd.supabase.co/storage/v1/object/public";
-        const publicUrl = `${SUPABASE_URL}/3gContent/${data.path}`;
-        imageUrls.push(publicUrl);
-        console.log("Image uploaded:", publicUrl);
+        const url = await uploadToCloudinary(
+          image.buffer,
+          "desinaar/productImage"
+        );
+        imageUrls.push(url);
+        console.log("Image uploaded to Cloudinary:", url);
       }
     }
-
-    // Save to DB
-    // const product = new Product({
-    //   ...productData,
-    //   imageUrls,
-    // });
 
     const product = new Product({
       title: title?.trim(),
@@ -105,7 +95,6 @@ const uploadProduct = async (req, res) => {
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
       imageUrls,
-      detailImages: detailImageUrls,
 
       fabric,
       color,
@@ -159,7 +148,6 @@ const getAllProducts = async (req, res) => {
       const filter = { collectionType: new RegExp(`^${collectionType}$`, "i") };
       products = await Product.find(filter).sort({ sequenceNo: 1 });
     } else {
-      // Get all products and sort by collectionType first, then sequenceNo
       products = await Product.find({}).sort({
         collectionType: 1,
         sequenceNo: 1,
@@ -215,9 +203,8 @@ const updateProduct = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    console.log("Request Files updates:", updates);
-    console.log("Request Files updates id:", id);
-
+    console.log("Request body updates:", updates);
+    console.log("Update id:", id);
 
     const product = await Product.findById(id);
     if (!product) {
@@ -229,63 +216,27 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    console.log("Product details", product);
+    console.log("Existing product:", product);
 
     // ---------- Handle main images ----------
     const images = req.files?.images || [];
     let imageUrls = [];
 
     for (const image of images) {
-      const fileName = image.originalname;
-      const folderName = "desinaar/productImage";
-      const filePath = `${folderName}/${fileName}`;
-
-      const { data, error: uploadError } = await supabase.storage
-        .from("3gContent")
-        .upload(filePath, image.buffer, {
-          contentType: image.mimetype,
-          cacheControl: "3600",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(`Supabase upload error: ${uploadError.message}`);
-      }
-
-      const publicUrl = `https://ewppyeqhqylgauppwvjd.supabase.co/storage/v1/object/public/3gContent/${data.path}`;
-      imageUrls.push(publicUrl);
+      const url = await uploadToCloudinary(image.buffer, "desinaar/productImage");
+      imageUrls.push(url);
     }
 
     // Preserve old images if none are uploaded
-    if (imageUrls.length > 0) {
-      updates.imageUrls = imageUrls;
-    } else {
-      updates.imageUrls = product.imageUrls;
-    }
+    updates.imageUrls = imageUrls.length > 0 ? imageUrls : product.imageUrls;
 
     // ---------- Handle detail images ----------
     const detailImages = req.files?.detailImages || [];
     let detailImageUrls = [];
 
     for (const image of detailImages) {
-      const fileName = image.originalname;
-      const folderName = "desinaar/detailImages";
-      const filePath = `${folderName}/${fileName}`;
-
-      const { data, error: uploadError } = await supabase.storage
-        .from("3gContent")
-        .upload(filePath, image.buffer, {
-          contentType: image.mimetype,
-          cacheControl: "3600",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(`Supabase upload error: ${uploadError.message}`);
-      }
-
-      const publicUrl = `https://ewppyeqhqylgauppwvjd.supabase.co/storage/v1/object/public/3gContent/${data.path}`;
-      detailImageUrls.push(publicUrl);
+      const url = await uploadToCloudinary(image.buffer, "desinaar/detailImages");
+      detailImageUrls.push(url);
     }
 
     // Preserve old detailImages if none are uploaded
@@ -297,29 +248,20 @@ const updateProduct = async (req, res) => {
       updates.detailImages = product.detailImages;
     }
 
-    console.log("update fabric", updates.fabricCare);
-
     // ---------- Parse structured fields ----------
     const parseIfString = (field) =>
       typeof field === "string" ? JSON.parse(field) : field;
 
-    updates.fabricCare = parseIfString(updates.fabricCare);
-    updates.deliveryAndReturns = parseIfString(updates.deliveryAndReturns);
-    updates.additionalInfo = parseIfString(updates.additionalInfo);
-    updates.shippingInfo = parseIfString(updates.shippingInfo);
-    updates.specifications = parseIfString(updates.specifications);
-    updates.sizes = parseIfString(updates.sizes);
-    updates.colors = parseIfString(updates.colors);
+    if (updates.fabricCare) updates.fabricCare = parseIfString(updates.fabricCare);
+    if (updates.deliveryAndReturns) updates.deliveryAndReturns = parseIfString(updates.deliveryAndReturns);
+    if (updates.additionalInfo) updates.additionalInfo = parseIfString(updates.additionalInfo);
+    if (updates.shippingInfo) updates.shippingInfo = parseIfString(updates.shippingInfo);
+    if (updates.specifications) updates.specifications = parseIfString(updates.specifications);
+    if (updates.sizes) updates.sizes = parseIfString(updates.sizes);
+    if (updates.colors) updates.colors = parseIfString(updates.colors);
 
     if (updates.sequenceNo) updates.sequenceNo = parseInt(updates.sequenceNo);
     if (updates.price) updates.price = parseFloat(updates.price);
-
-    // Trim string fields
-    // ["title", "description", "sku", "videoUrl", "collectionType"].forEach((key) => {
-    //   if (updates[key] && typeof updates[key] === "string") {
-    //     updates[key] = updates[key].trim();
-    //   }
-    // });
 
     // ---------- Trim string fields ----------
     [
@@ -370,7 +312,6 @@ const updateProduct = async (req, res) => {
     });
   }
 };
-
 
 const deleteProduct = async (req, res) => {
   try {
