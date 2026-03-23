@@ -3,26 +3,27 @@ const Product = require("../models/Product");
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
 
-// Configure Cloudinary using env variables
-// Add these to your .env file:
-// CLOUDINARY_CLOUD_NAME=your_cloud_name
-// CLOUDINARY_API_KEY=your_api_key
-// CLOUDINARY_API_SECRET=your_api_secret
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Helper: Upload a single buffer to Cloudinary
-const uploadToCloudinary = (buffer, folder) => {
+// ✅ Helper: Upload a single buffer to Cloudinary with original filename
+const uploadToCloudinary = (buffer, folder, filename) => {
   return new Promise((resolve, reject) => {
+    // Extension hata ke clean public_id banao
+    const cleanName = filename
+      ? filename.replace(/\.[^/.]+$/, "").replace(/\s+/g, "_")
+      : `upload_${Date.now()}`;
+
     const stream = cloudinary.uploader.upload_stream(
       {
-        folder,                  // ✅ this sets desinaar/productImage
+        folder,
         resource_type: "image",
         use_filename: true,
         unique_filename: false,
+        public_id: cleanName, // ✅ original filename set hoga
       },
       (error, result) => {
         if (error) return reject(error);
@@ -34,6 +35,7 @@ const uploadToCloudinary = (buffer, folder) => {
   });
 };
 
+// ===================== CREATE PRODUCT =====================
 const uploadProduct = async (req, res) => {
   let imageUrls = [];
 
@@ -63,11 +65,12 @@ const uploadProduct = async (req, res) => {
       returnPolicy,
       collectionType,
       sequenceNo,
+      description,
+      videoUrl,
     } = req.body;
 
     const images = req.files?.images || req.files || [];
 
-    // Check required fields
     if (!title?.trim() || !sku?.trim() || isNaN(parseFloat(price))) {
       return res.status(400).json({
         status: "error",
@@ -76,25 +79,44 @@ const uploadProduct = async (req, res) => {
       });
     }
 
-    // Upload main images to Cloudinary
+    // ✅ Upload product images with original filename
     if (images && images.length > 0) {
       for (const image of images) {
         const url = await uploadToCloudinary(
           image.buffer,
-          "desinaar/productImage"
+          "desinaar/productImage",
+          image.originalname // ✅ original filename
         );
         imageUrls.push(url);
         console.log("Image uploaded to Cloudinary:", url);
       }
     }
 
+    // ✅ Upload detail images with original filename
+    let detailImageUrls = [];
+    const detailImages = req.files?.detailImages || [];
+    if (detailImages.length > 0) {
+      for (const image of detailImages) {
+        const url = await uploadToCloudinary(
+          image.buffer,
+          "desinaar/detailImages",
+          image.originalname // ✅ original filename
+        );
+        detailImageUrls.push(url);
+        console.log("Detail image uploaded to Cloudinary:", url);
+      }
+    }
+
     const product = new Product({
       title: title?.trim(),
+      description: description || "",
       sku: sku?.trim(),
       price: price ? parseFloat(price) : undefined,
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
       imageUrls,
+      detailImages: detailImageUrls,
+      videoUrl: videoUrl || "",
 
       fabric,
       color,
@@ -136,6 +158,7 @@ const uploadProduct = async (req, res) => {
   }
 };
 
+// ===================== GET ALL PRODUCTS =====================
 const getAllProducts = async (req, res) => {
   try {
     let { collectionType } = req.query;
@@ -170,6 +193,7 @@ const getAllProducts = async (req, res) => {
   }
 };
 
+// ===================== GET PRODUCT BY ID =====================
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -198,6 +222,7 @@ const getProductById = async (req, res) => {
   }
 };
 
+// ===================== UPDATE PRODUCT =====================
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
@@ -218,35 +243,59 @@ const updateProduct = async (req, res) => {
 
     console.log("Existing product:", product);
 
-    // ---------- Handle main images ----------
-    const images = req.files?.images || [];
-    let imageUrls = [];
+    // ✅ ---------- Handle main images ----------
+    const newImageFiles = req.files?.images || [];
+    let newImageUrls = [];
 
-    for (const image of images) {
-      const url = await uploadToCloudinary(image.buffer, "desinaar/productImage");
-      imageUrls.push(url);
+    for (const image of newImageFiles) {
+      const url = await uploadToCloudinary(
+        image.buffer,
+        "desinaar/productImage",
+        image.originalname // ✅ original filename
+      );
+      newImageUrls.push(url);
+      console.log("New product image uploaded:", url);
     }
 
-    // Preserve old images if none are uploaded
-    updates.imageUrls = imageUrls.length > 0 ? imageUrls : product.imageUrls;
+    // ✅ Existing URLs jo frontend ne bheji (jo user ne remove nahi ki)
+    let existingImages = updates.existingImages || [];
+    if (typeof existingImages === "string") existingImages = [existingImages];
 
-    // ---------- Handle detail images ----------
-    const detailImages = req.files?.detailImages || [];
-    let detailImageUrls = [];
+    // ✅ Merge: purani URLs + naye uploaded URLs
+    const finalImageUrls = [...existingImages, ...newImageUrls];
 
-    for (const image of detailImages) {
-      const url = await uploadToCloudinary(image.buffer, "desinaar/detailImages");
-      detailImageUrls.push(url);
+    // Agar dono empty hain toh DB ki purani images rakh lo
+    updates.imageUrls = finalImageUrls.length > 0 ? finalImageUrls : product.imageUrls;
+
+    // DB mein save nahi hona chahiye
+    delete updates.existingImages;
+
+    // ✅ ---------- Handle detail images ----------
+    const newDetailFiles = req.files?.detailImages || [];
+    let newDetailUrls = [];
+
+    for (const image of newDetailFiles) {
+      const url = await uploadToCloudinary(
+        image.buffer,
+        "desinaar/detailImages",
+        image.originalname // ✅ original filename
+      );
+      newDetailUrls.push(url);
+      console.log("New detail image uploaded:", url);
     }
 
-    // Preserve old detailImages if none are uploaded
-    if (detailImageUrls.length > 0) {
-      updates.detailImages = detailImageUrls;
-    } else if (updates.detailImages) {
-      updates.detailImages = JSON.parse(updates.detailImages);
-    } else {
-      updates.detailImages = product.detailImages;
-    }
+    // ✅ Existing detail URLs jo frontend ne bheji
+    let existingDetailImages = updates.existingDetailImages || [];
+    if (typeof existingDetailImages === "string") existingDetailImages = [existingDetailImages];
+
+    // ✅ Merge: purani URLs + naye uploaded URLs
+    const finalDetailUrls = [...existingDetailImages, ...newDetailUrls];
+
+    // Agar dono empty hain toh DB ki purani images rakh lo
+    updates.detailImages = finalDetailUrls.length > 0 ? finalDetailUrls : product.detailImages;
+
+    // DB mein save nahi hona chahiye
+    delete updates.existingDetailImages;
 
     // ---------- Parse structured fields ----------
     const parseIfString = (field) =>
@@ -313,6 +362,7 @@ const updateProduct = async (req, res) => {
   }
 };
 
+// ===================== DELETE PRODUCT =====================
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
