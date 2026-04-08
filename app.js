@@ -9,6 +9,7 @@ const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
 const collageRoutes = require("./routes/collageRoute");
 const cartRoutes = require("./routes/cartRoutes");
+const whatsappRoutes = require("./routes/whatsappRoutes");
 
 const app = express();
 
@@ -32,6 +33,10 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/collage", collageRoutes);
 app.use("/api/cart", cartRoutes);
+
+
+//Watsapp Api
+app.use("/api", whatsappRoutes);
 
 // Basic Home Route
 app.get("/", (req, res) => {
