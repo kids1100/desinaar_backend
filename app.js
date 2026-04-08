@@ -23,7 +23,7 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // Allow pre-flight (OPTIONS) requests
 
 // Connect to MongoDB
-connectDB();
+// connectDB();
 
 // Middlewares
 app.use(bodyParser.json());
