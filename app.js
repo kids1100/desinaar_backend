@@ -10,7 +10,7 @@ const productRoutes = require("./routes/productRoutes");
 const collageRoutes = require("./routes/collageRoute");
 const cartRoutes = require("./routes/cartRoutes");
 const whatsappRoutes = require("./routes/whatsappRoutes");
-
+const enquiryRoutes = require("./routes/enquiryRoutes")
 const app = express();
 
 // CORS Configuration
@@ -23,7 +23,7 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // Allow pre-flight (OPTIONS) requests
 
 // Connect to MongoDB
-// connectDB();
+connectDB();
 
 // Middlewares
 app.use(bodyParser.json());
@@ -37,6 +37,9 @@ app.use("/api/cart", cartRoutes);
 
 //Watsapp Api
 app.use("/api", whatsappRoutes);
+
+//Enquirey
+app.use("/api/enquiry", enquiryRoutes);
 
 // Basic Home Route
 app.get("/", (req, res) => {
