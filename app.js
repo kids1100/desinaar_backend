@@ -12,6 +12,7 @@ const cartRoutes = require("./routes/cartRoutes");
 const whatsappRoutes = require("./routes/whatsappRoutes");
 const enquiryRoutes = require("./routes/enquiryRoutes")
 const app = express();
+const newArrivalRoutes = require("./routes/newArrivalRoutes");
 
 // CORS Configuration
 const corsOptions = {
@@ -40,6 +41,9 @@ app.use("/api", whatsappRoutes);
 
 //Enquirey
 app.use("/api/enquiry", enquiryRoutes);
+
+//New Arrival
+app.use("/api/new-arrival", newArrivalRoutes);
 
 // Basic Home Route
 app.get("/", (req, res) => {
