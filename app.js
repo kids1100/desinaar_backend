@@ -13,6 +13,7 @@ const whatsappRoutes = require("./routes/whatsappRoutes");
 const enquiryRoutes = require("./routes/enquiryRoutes")
 const app = express();
 const newArrivalRoutes = require("./routes/newArrivalRoutes");
+const uploadRoutes = require('./routes/uploadRoutes');
 
 // CORS Configuration
 const corsOptions = {
@@ -34,6 +35,10 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/collage", collageRoutes);
 app.use("/api/cart", cartRoutes);
+
+// app.js / server.js mein
+
+app.use('/api/upload', uploadRoutes);
 
 
 //Watsapp Api

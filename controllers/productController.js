@@ -265,7 +265,8 @@ const updateProduct = async (req, res) => {
     const finalImageUrls = [...existingImages, ...newImageUrls];
 
     // Agar dono empty hain toh DB ki purani images rakh lo
-    updates.imageUrls = finalImageUrls.length > 0 ? finalImageUrls : product.imageUrls;
+    // ✅ ALWAYS replace with frontend data
+    updates.imageUrls = finalImageUrls;
 
     // DB mein save nahi hona chahiye
     delete updates.existingImages;
@@ -292,7 +293,7 @@ const updateProduct = async (req, res) => {
     const finalDetailUrls = [...existingDetailImages, ...newDetailUrls];
 
     // Agar dono empty hain toh DB ki purani images rakh lo
-    updates.detailImages = finalDetailUrls.length > 0 ? finalDetailUrls : product.detailImages;
+    updates.detailImages = finalDetailUrls;
 
     // DB mein save nahi hona chahiye
     delete updates.existingDetailImages;
