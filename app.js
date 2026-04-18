@@ -13,7 +13,7 @@ const whatsappRoutes = require("./routes/whatsappRoutes");
 const enquiryRoutes = require("./routes/enquiryRoutes")
 const app = express();
 const newArrivalRoutes = require("./routes/newArrivalRoutes");
-const uploadRoutes = require('./routes/uploadRoutes');
+const uploadRoutes = require("./routes/Uploadroutes");
 
 // CORS Configuration
 const corsOptions = {
