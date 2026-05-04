@@ -164,11 +164,19 @@ const getAllProducts = async (req, res) => {
     let { collectionType } = req.query;
 
     collectionType = collectionType?.replace(/"/g, "").trim();
+    const shouldFilterByCollection =
+      collectionType && collectionType.toLowerCase() !== "all";
 
     let products;
 
-    if (collectionType) {
-      const filter = { collectionType: new RegExp(`^${collectionType}$`, "i") };
+    if (shouldFilterByCollection) {
+      const escapedCollectionType = collectionType.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+      const filter = {
+        collectionType: new RegExp(`^${escapedCollectionType}$`, "i"),
+      };
       products = await Product.find(filter).sort({ sequenceNo: 1 });
     } else {
       products = await Product.find({}).sort({
