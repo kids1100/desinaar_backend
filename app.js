@@ -14,6 +14,7 @@ const enquiryRoutes = require("./routes/enquiryRoutes")
 const app = express();
 const newArrivalRoutes = require("./routes/newArrivalRoutes");
 const uploadRoutes = require("./routes/Uploadroutes");
+const sellRoutes = require("./routes/sellRoutes");
 
 // CORS Configuration
 const corsOptions = {
@@ -49,6 +50,9 @@ app.use("/api/enquiry", enquiryRoutes);
 
 //New Arrival
 app.use("/api/new-arrival", newArrivalRoutes);
+
+// Sell
+app.use("/api/sell", sellRoutes);
 
 // Basic Home Route
 app.get("/", (req, res) => {
